@@ -1,0 +1,16 @@
+#!/bin/bash
+MAXWAIT=60
+n=0
+ETH=$1
+while : ; do
+    if [ "${n}" -gt "$MAXWAIT"  ]; then
+        echo "$ETH never got an address in $MAXWAIT seconds; giving up!" 1>&2
+        break
+    fi
+    ifconfig $ETH | grep -q ' inet '
+    if [ $? -eq 0 ]; then
+        break
+    fi
+    sleep 1
+    n=$((n + 1))
+done

@@ -1,0 +1,188 @@
+#!/bin/bash
+
+# This script was designed for running emulated systems with networking on
+#  Raspberry Pis.  The idea is to take the ethernet device and turn it into
+#  a bridge device, and then create as many tap devices as we need, each with
+#  its own tap interface.
+#
+# This is useful so that you can have working networking in your guest
+#  machine without having to run the emulator under sudo or as root.  As
+#  long as you run this script first (this one must be run as root), then
+#  if you run the emulator as the specified user, it can use its
+#  specified networking device (tap0 or whatever) as itself.
+
+usage() {
+    echo "$0 [options] start|stop" 1>&2
+    echo "  options: -h: display help" 1>&2
+    echo "           -u user: emulator user [pi]" 1>&2
+    echo "           -g group: emulator wheel-equivalent group [adm]" 1>&2
+    echo "           -i interface: interface to convert to bridge [eth0]" 1>&2
+    echo "           -b bridge: bridge interface name [br0]" 1>&2
+    echo "           -n number-of-taps: maximum tap interfaces [4]" 1>&2
+    echo "           -f first-tap: first tap interface [0]" 1>&2
+    echo "           -m metric: default route metric [101]" 1>&2
+    echo " " 1>&2
+    echo "  or set from environment: -u: EMU_USER" 1>&2
+    echo "                           -g: WHEEL" 1>&2
+    echo "                           -i: IF" 1>&2
+    echo "                           -b: BRIDGE" 1>&2
+    echo "                           -n: MAX_TAP" 1>&2
+    echo "                           -f: FIRST_TAP" 1>&2
+    echo "                           -m: METRIC" 1>&2
+}
+
+extract_netinfo() {
+    local interface=$1
+    ethtext=$(/sbin/ifconfig ${interface} | grep "inet " \
+                        | grep -v '127.0.0.1' )
+    if [ -z "${ethtext}" ]; then
+        echo "Interface '${interface}' has no IPv4 addr; cannot continue!" 1>&2
+        exit 2
+    fi
+
+    host_ip=$(echo "${ethtext}" | awk '{print $2}')
+    host_netmask=$(echo "${ethtext}" | awk '{print $4}')
+    host_bcast=$(echo "${ethtext}" | awk '{print $6}')
+    host_gw=$(/sbin/route -n | grep ^0.0.0.0 | head -1 | \
+                        awk '{ print $2 }')
+
+    if [ -z "$host_ip" ]; then
+        echo "Cannot determine host IP; cannot continue!" 1>&2
+        exit 2
+    fi
+    if [ -z "$host_netmask" ]; then
+        echo "Cannot determine host netmask; cannot continue!" 1>&2
+        exit 2
+    fi
+    if [ -z "$host_bcast" ]; then
+        echo "Cannot determine host broadcast address; cannot continue!" 1>&2
+        exit 2
+    fi
+    if [ -z "$host_gw" ]; then
+        echo "Cannot determine host broadcast address; cannot continue!" 1>&2
+        exit 2
+    fi
+
+    top_tap=$(( FIRST_TAP + NUM_TAP - 1))
+}
+
+start_bridge() {
+    extract_netinfo ${IF}
+
+    # Create the tap devices
+    for i in $(seq ${FIRST_TAP} ${top_tap}); do
+        /usr/bin/tunctl -t tap${i} -u ${EMU_USER} -g ${WHEEL} >/dev/null
+        /sbin/ifconfig tap${i} up
+    done
+
+
+    # Now convert ${IF} to a bridge and bridge it with the TAP interfaces
+    # Bring it down
+    /sbin/ifconfig ${IF} down
+    # Create the bridge
+    /sbin/brctl addbr ${BRIDGE}
+    /sbin/brctl addif ${BRIDGE} ${IF}
+    /sbin/brctl setfd ${BRIDGE} 0
+    # Bring up the ethernet as part of the bridge
+    /sbin/ifconfig ${BRIDGE} down
+    /sbin/ifconfig ${IF} 0.0.0.0 up
+    /sbin/ifconfig ${BRIDGE} $host_ip netmask $host_netmask \
+                   broadcast $host_bcast up
+    # set the default route to the ${BRIDGE} interface
+    /sbin/route del -net 0.0.0.0/0 gw $host_gw dev ${BRIDGE} 2>&1 >/dev/null
+    /sbin/route add -net 0.0.0.0/0 gw $host_gw metric ${METRIC} \
+                dev ${BRIDGE} 2>&1 >/dev/null
+    #
+    # bridge in the tap devices
+    for i in $(seq ${FIRST_TAP} ${top_tap}); do
+        /sbin/brctl addif ${BRIDGE} tap${i}
+        /sbin/ifconfig tap${i} 0.0.0.0
+    done
+}
+
+stop_bridge() {
+    extract_netinfo ${BRIDGE}
+    /sbin/ifconfig ${BRIDGE} down
+    # delete the tap devices
+    for i in $(seq ${FIRST_TAP} ${top_tap}); do
+        /usr/bin/tunctl -d tap${i} >/dev/null
+    done
+    # remove the bridge
+    /sbin/brctl delbr ${BRIDGE}
+    /sbin/ifconfig ${IF} down
+    /sbin/ifconfig ${IF} $host_ip netmask $host_netmask \
+                   broadcast $host_bcast up
+    # set the default route to the $IF interface
+    eth_metric=$((2 * METRIC)) # ad-hoc, matches Debian
+    /sbin/route del -net 0.0.0.0/0 gw $host_gw dev ${IF} 2>&1 >/dev/null
+    /sbin/route add -net 0.0.0.0/0 gw $host_gw metric ${eth_metric} \
+                dev ${IF} 2>&1 >/dev/null
+}
+
+# Defaults
+IF=${IF:-"eth0"}
+BRIDGE=${BRIDGE:-"br0"}
+EMU_USER=${EMU_USER:-"pi"} # must be in wheel-equivalent group
+WHEEL=${WHEEL:-"adm"}
+NUM_TAP=${NUM_TAP:-4}
+FIRST_TAP=${FIRST_TAP:-0}
+METRIC=${METRIC:-101}
+
+while getopts ":hu:g:i:b:n:f:m:" opt; do
+    case ${opt} in
+        h)
+            usage
+            exit 0
+            ;;
+        u)
+            EMU_USER=$OPTARG
+            ;;
+        g)
+            WHEEL=$OPTARG
+            ;;
+        i)
+            IF=$OPTARG
+            ;;
+        b)
+            BRIDGE=$OPTARG
+            ;;
+        n)
+            NUM_TAP=$OPTARG
+            ;;
+        f)
+            FIRST_TAP=$OPTARG
+            ;;
+        m)
+            METRIC=$OPTARG
+            ;;
+        \?)
+            echo "Invalid option: -$OPTARG" 1>&2
+            exit 1
+            ;;
+    esac
+done
+shift $((OPTIND -1))
+verb=$1
+
+rec=$(id ${EMU_USER} 2>&1)
+if [ $? -ne 0 ]; then
+    echo "No such user '${EMU_USER}'" 1>&2
+    exit 2
+fi
+echo ${rec} | grep "\(${WHEEL}\)" 2>&1 >/dev/null
+if [ $? -ne 0 ]; then
+    echo "User '${EMU_USER}' not in group '${WHEEL}'" 1>&2
+    exit 2
+fi
+
+case "${verb}" in
+    start)
+        start_bridge
+    ;;
+    stop)
+        stop_bridge
+    ;;
+    *)
+        usage
+        exit 2
+esac
