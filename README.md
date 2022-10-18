@@ -41,7 +41,7 @@ the PiDP-11 software: `brnet start`.
 
 To run with a different user and group and more tap devices:
 
-`brnet -u adam -g wheel -n 8`
+`brnet -u adam -g wheel -n 8 start`
 
 To shut down the bridge and put things back the way they were:
 
