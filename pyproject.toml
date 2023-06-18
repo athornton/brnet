@@ -23,7 +23,7 @@ dependencies = []
 dynamic = ["version"]
 
 [project.scripts]
-jupyterlab-controller = "brnet.cli:main"
+brnet = "brnet.cli:main"
 
 [project.urls]
 Source = "https://github.com/athornton/brnet"

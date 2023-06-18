@@ -65,8 +65,8 @@ def main() -> None:
     parser.add_argument(
         "-d",
         "--debug",
-        type=bool,
-        default=_str_bool(os.environ.get("DEBUG"), ""),
+        action="store_true",
+        default=_str_bool(os.environ.get("DEBUG", "")),
         help="enable debugging",
     )
     parser.add_argument(
@@ -82,6 +82,7 @@ def main() -> None:
         number_of_taps=args.number_of_taps,
         first_tap=args.first_tap,
         metric=args.metric,
+        debug=args.debug,
     )
     bridger.execute(args.action)
 

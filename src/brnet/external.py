@@ -28,9 +28,16 @@ def run(
     return proc
 
 
-def run_and_decode(args: List[str], logger: Optional[Logger] = None) -> Any:
+def run_check(
+    args: List[str], logger: Optional[Logger] = None
+) -> subprocess.CompletedProcess:
     proc = run(args, logger)
     if proc.returncode != 0:
         raise RuntimeError(f"cmd {args} returned {proc.returncode}")
+    return proc
+
+
+def run_and_decode(args: List[str], logger: Optional[Logger] = None) -> Any:
+    proc = run_check(args, logger)
     std = proc.stdout.decode()
     return json.loads(std)
