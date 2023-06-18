@@ -1,8 +1,12 @@
+import json
 import subprocess
-from typing import Optional, List
 from logging import Logger
+from typing import Any, List, Optional
 
-def run(args: List[str], logger: Optional[Logger] = None) -> None:
+
+def run(
+    args: List[str], logger: Optional[Logger] = None
+) -> subprocess.CompletedProcess:
     argstr = " ".join(args)
     if logger:
         logger.info(f"Running command '{argstr}'")
@@ -21,3 +25,12 @@ def run(args: List[str], logger: Optional[Logger] = None) -> None:
                 + f" -> stdout: {proc.stdout.decode()}\n"
                 f" -> stderr: {proc.stderr.decode()}"
             )
+    return proc
+
+
+def run_and_decode(args: List[str], logger: Optional[Logger] = None) -> Any:
+    proc = run(args, logger)
+    if proc.returncode != 0:
+        raise RuntimeError(f"cmd {args} returned {proc.returncode}")
+    std = proc.stdout.decode()
+    return json.loads(std)
