@@ -9,7 +9,7 @@ def run(
 ) -> subprocess.CompletedProcess:
     argstr = " ".join(args)
     if logger:
-        logger.info(f"Running command '{argstr}'")
+        logger.debug(f"Running command '{argstr}'")
     proc = subprocess.run(args, capture_output=True)
     if proc.returncode != 0:
         if logger:
@@ -31,9 +31,10 @@ def run(
 def run_check(
     args: List[str], logger: Optional[Logger] = None
 ) -> subprocess.CompletedProcess:
+    argstr = " ".join(args)
     proc = run(args, logger)
     if proc.returncode != 0:
-        raise RuntimeError(f"cmd {args} returned {proc.returncode}")
+        raise RuntimeError(f"cmd '{argstr}' returned {proc.returncode}")
     return proc
 
 

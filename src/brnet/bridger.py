@@ -7,6 +7,8 @@ from .external import run, run_and_decode, run_check
 
 
 class Bridger:
+    """The class that sets up and tears down bridged networks."""
+
     def __init__(
         self,
         user: str,
@@ -46,6 +48,16 @@ class Bridger:
         self._netinfo: Dict[str, Any] = {}
         self._gateway: str = ""
 
+    def execute(self, action: str) -> None:
+        """execute() is the only public method; it can either start or stop
+        the bridged network."""
+        if action == "start":
+            self._start()
+        elif action == "stop":
+            self._stop()
+        else:
+            raise RuntimeError("Action must be either 'start' or 'stop'")
+
     @property
     def _ip(self) -> str:
         if not self._netinfo:
@@ -53,17 +65,10 @@ class Bridger:
         return f"{self._netinfo['local']}/{self._netinfo['prefixlen']}"
 
     def _preflight_check(self) -> None:
+        """We only need `ip` from `iproute2` now."""
         for exe in ["ip"]:
             if not shutil.which(exe):
                 raise RuntimeError(f"{exe} not found on path")
-
-    def execute(self, action: str) -> None:
-        if action == "start":
-            self._start()
-        elif action == "stop":
-            self._stop()
-        else:
-            raise RuntimeError("Action must be either 'start' or 'stop'")
 
     def _extract_netinfo(self, interface: str) -> None:
         cmd = ["ip", "--json", "addr", "show", "dev", interface]
@@ -116,6 +121,18 @@ class Bridger:
         self._create_taps()
         self._bridge_phys_if()
 
+    def _create_bridge(self) -> None:
+        cmd = ["ip", "link", "add", self._bridge, "type", "bridge"]
+        run_check(args=cmd, logger=self._logger)
+
+    def _create_taps(self) -> None:
+        for i in range(self._first_tap, (self._first_tap + self._num_taps)):
+            tapdev = f"tap{i}"
+            cmd = ["ip", "tuntap", "add", "mode", "tap", tapdev]
+            run_check(args=cmd, logger=self._logger)
+            cmd = ["ip", "link", "set", "dev", tapdev, "master", self._bridge]
+            run_check(args=cmd, logger=self._logger)
+
     def _bridge_phys_if(self) -> None:
         cmd = ["ip", "addr", "del", "dev", self._interface, self._ip]
         run_check(args=cmd, logger=self._logger)
@@ -138,18 +155,6 @@ class Bridger:
             run(args=cmd, logger=self._logger)
             cmd = ["ip", "route", "del", "default", "dev", self._interface]
             run(args=cmd, logger=self._logger)
-
-    def _create_bridge(self) -> None:
-        cmd = ["ip", "link", "add", self._bridge, "type", "bridge"]
-        run_check(args=cmd, logger=self._logger)
-
-    def _create_taps(self) -> None:
-        for i in range(self._first_tap, (self._first_tap + self._num_taps)):
-            tapdev = f"tap{i}"
-            cmd = ["ip", "tuntap", "add", "mode", "tap", tapdev]
-            run_check(args=cmd, logger=self._logger)
-            cmd = ["ip", "link", "set", "dev", tapdev, "master", self._bridge]
-            run_check(args=cmd, logger=self._logger)
 
     def _stop(self) -> None:
         self._extract_netinfo(self._bridge)
