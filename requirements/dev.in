@@ -1,0 +1,4 @@
+coverage[toml]
+mypy
+pytest
+pytest-cov

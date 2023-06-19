@@ -1,13 +1,16 @@
 import json
 import logging
 import shutil
+import time
 from typing import Any, Dict, Optional
 
 from .external import run, run_and_decode, run_check
 
 
 class Bridger:
-    """The class that sets up and tears down bridged networks."""
+    """The class that sets up and tears down bridged networks.  Note that
+    none of the arguments have defaults; we rely on the CLI to provide
+    defaults for command-line usage."""
 
     def __init__(
         self,
@@ -17,6 +20,7 @@ class Bridger:
         bridge: str,
         number_of_taps: int,
         first_tap: int,
+        wait_for_address: int,
         metric: int,
         debug: bool,
     ) -> None:
@@ -26,9 +30,11 @@ class Bridger:
         self._bridge = bridge
         self._num_taps = number_of_taps
         self._first_tap = first_tap
+        self._wait = wait_for_address
         self._metric = metric
-        self._orig_metric: Optional[int] = None
         self._debug = debug
+
+        self._orig_metric: Optional[int] = None
 
         self._logger = logging.getLogger(__name__)
         ch = logging.StreamHandler()
@@ -65,10 +71,10 @@ class Bridger:
         return f"{self._netinfo['local']}/{self._netinfo['prefixlen']}"
 
     def _preflight_check(self) -> None:
-        """We only need `ip` from `iproute2` now."""
-        for exe in ["ip"]:
-            if not shutil.which(exe):
-                raise RuntimeError(f"{exe} not found on path")
+        if not shutil.which("ip"):
+            raise RuntimeError(
+                "'ip' not found on path; is 'iproute2' installed?"
+            )
 
     def _extract_netinfo(self, interface: str) -> None:
         cmd = ["ip", "--json", "addr", "show", "dev", interface]
@@ -76,11 +82,22 @@ class Bridger:
         if type(netinfo) != list or len(netinfo) != 1:
             raise RuntimeError("Netinfo should be a one-item list")
         addrs = [x for x in netinfo[0]["addr_info"] if x["family"] == "inet"]
-        if len(addrs) < 1:
-            raise RuntimeError(
-                "There should be at least one IPv4 address for "
-                + self._interface
-            )
+        retries = 0
+        while len(addrs) < 1:
+            if retries < self._wait:
+                self.log.debug(
+                    f"Waiting 1s ({retries}/{self._wait}) for "
+                    f"IPv4 address on {self._interface}"
+                )
+                time.sleep(1.0)
+                addrs = [
+                    x for x in netinfo[0]["addr_info"] if x["family"] == "inet"
+                ]
+            else:
+                raise RuntimeError(
+                    "There should be at least one IPv4 address for "
+                    + self._interface
+                )
         addr = addrs[0]
         if len(addrs) > 1:
             self.log.info(

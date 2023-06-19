@@ -21,53 +21,63 @@ def main() -> None:
         "-u",
         "--user",
         default=os.environ.get("BRNET_USER", "pi"),
-        help="network-owner username",
+        help="network-owner username [env: BRNET_USER, 'pi']",
     )
     parser.add_argument(
         "-g",
         "--group",
         default=os.environ.get("BRNET_GROUP", "adm"),
-        help="network wheel-equivalent group owner",
+        help="network wheel-equivalent group owner [env: BRNET_GROUP, 'adm']",
     )
     parser.add_argument(
         "-i",
         "--interface",
         default=os.environ.get("BRNET_INTERFACE", "eth0"),
-        help="network interface to convert to bridge",
+        help=(
+            "network interface to convert to bridge [env: BRNET_INTERFACE"
+            + ", 'eth0']"
+        ),
     )
     parser.add_argument(
         "-b",
         "--bridge",
         default=os.environ.get("BRNET_BRIDGE_DEVICE", "br0"),
-        help="bridge network device",
+        help="bridge network device [env: BRNET_BRIDGE_DEVICE, 'br0']",
     )
     parser.add_argument(
         "-n",
         "--number-of-taps",
         type=int,
         default=int(os.environ.get("BRNET_NUM_TAPS", "4")),
-        help="number of tap devices",
+        help="number of tap devices [env: BRNET_NUM_TAPS, 4]",
     )
     parser.add_argument(
         "-f",
         "--first-tap",
         type=int,
         default=int(os.environ.get("BRNET_FIRST_TAP", "0")),
-        help="number of first tap device",
+        help="number of first tap device [env: BRNET_FIRST_TAP, 0]",
+    )
+    parser.add_argument(
+        "-w",
+        "--wait_for_address",
+        type=int,
+        default=int(os.environ.get("BRNET_WAIT_FOR_ADDR", "60")),
+        help="time (s) to wait for IP address [env: BRNET_WAIT_FOR_ADDR, 60]",
     )
     parser.add_argument(
         "-m",
         "--metric",
         type=int,
         default=int(os.environ.get("BRNET_ROUTE_METRIC", "101")),
-        help="default route metric",
+        help="default route metric [env: BRNET_ROUTE_METRIC, 101]",
     )
     parser.add_argument(
         "-d",
         "--debug",
         action="store_true",
         default=_str_bool(os.environ.get("DEBUG", "")),
-        help="enable debugging",
+        help="enable debugging [env: DEBUG, False]",
     )
     parser.add_argument(
         "action", choices=["start", "stop"], help="Action to take"
