@@ -91,6 +91,7 @@ def main() -> None:
         bridge=args.bridge,
         number_of_taps=args.number_of_taps,
         first_tap=args.first_tap,
+        wait_for_address=args.wait_for_address,
         metric=args.metric,
         debug=args.debug,
     )

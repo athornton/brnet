@@ -85,7 +85,7 @@ class Bridger:
         retries = 0
         while len(addrs) < 1:
             if retries < self._wait:
-                self.log.debug(
+                self._logger.debug(
                     f"Waiting 1s ({retries}/{self._wait}) for "
                     f"IPv4 address on {self._interface}"
                 )
@@ -100,8 +100,8 @@ class Bridger:
                 )
         addr = addrs[0]
         if len(addrs) > 1:
-            self.log.info(
-                f"Multiple addresses found for {self.interface}; "
+            self._logger.info(
+                f"Multiple addresses found for {self._interface}; "
                 f"using {addr}"
             )
         self._netinfo = addr
@@ -163,7 +163,7 @@ class Bridger:
                 "add",
                 "default",
                 "metric",
-                self._metric,
+                str(self._metric),
                 "dev",
                 self._bridge,
                 "via",
@@ -197,7 +197,7 @@ class Bridger:
         if self._gateway:
             cmd = ["ip", "route", "add", "default"]
             if self._orig_metric:
-                cmd.extend(["metric", self._orig_metric])
+                cmd.extend(["metric", str(self._orig_metric)])
             cmd.extend(["dev", self._interface, "via", self._gateway])
             run(args=cmd, logger=self._logger)
             cmd = ["ip", "route", "del", "default", "dev", self._bridge]
