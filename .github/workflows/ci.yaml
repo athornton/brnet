@@ -17,7 +17,6 @@ name: CI
 
 jobs:
   lint:
-
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -65,32 +64,9 @@ jobs:
         run: tox -e py,coverage-report,typing
 
   build:
+    name: Build wheel and if tagged upload release to PyPI
     runs-on: ubuntu-latest
     needs: [lint, test]
-
-    strategy:
-      matrix:
-        python:
-          - "3.11"
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python }}
-
-      - name: Build wheel
-        run: |
-          python3 -m pip install twine build
-          python3 -m build
-          twine check
-
-  pypi-publish:
-    name: Upload release to PyPI
-    runs-on: ubuntu-latest
-    needs: [build]
     environment:
       name: pypi
       url: https://pypi.org/p/brnet
@@ -98,8 +74,11 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v3
-      - name: Build and check
-        run: python3 -m build
+      - name: Build
+        run: |
+          python3 -m pip install twine build
+          python3 -m build
+          twine check dist/*
 
       - name: Publish
         uses: pypa/gh-action-pypi-publish@release/v1
