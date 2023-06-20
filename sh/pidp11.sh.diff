@@ -1,0 +1,8 @@
+14,20d13
+< # Wait for eth0 to come online
+< echo "*** Wait up to a minute for eth0 to get an address"
+< ./wait_for_if eth0
+<
+< echo "*** Set up Ethernet bridge for systems (e.g. 211bsd) with network stacks"
+< sudo ./brnet start
+<
