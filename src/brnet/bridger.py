@@ -149,6 +149,8 @@ class Bridger:
             run_check(args=cmd, logger=self._logger)
             cmd = ["ip", "link", "set", "dev", tapdev, "master", self._bridge]
             run_check(args=cmd, logger=self._logger)
+            cmd = ["ip", "link", "set", "dev", tapdev, "up"]
+            run_check(args=cmd, logger=self._logger)
 
     def _bridge_phys_if(self) -> None:
         cmd = ["ip", "addr", "del", "dev", self._interface, self._ip]
