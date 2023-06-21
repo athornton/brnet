@@ -15,13 +15,28 @@ if [ ! -d "${venv}" ]; then
     echo "No virtualenv at ${venv}; giving up" 1>&2
     exit 1
 fi
-source ${venv}/bin/activate
+source ${venv}/bin/activate || exit 2
 if [ "$(which brnet)" != "${venv}/bin/brnet" ]; then
     python3 -m pip install brnet
 fi
 if [ "$(which brnet)" != "${venv}/bin/brnet" ]; then
+    cwd=$(pwd)
+    mkdir -p "${venv}/src"
+    cd "${venv}/src"
+    if [ -d brnet ]; then
+        cd brnet
+        git checkout main
+        git pull
+    else
+        git clone https://github.com/athornton/brnet
+        cd brnet
+    fi
+    python3 -m pip install -e .
+    cd "${cwd}"
+fi
+if [ "$(which brnet)" != "${venv}/bin/brnet" ]; then
     echo "No brnet in virtualenv; giving up" 1>&2
-    exit 2
+    exit 3
 fi
 
 brnet $*
