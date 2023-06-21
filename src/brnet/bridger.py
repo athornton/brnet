@@ -141,6 +141,8 @@ class Bridger:
     def _create_bridge(self) -> None:
         cmd = ["ip", "link", "add", self._bridge, "type", "bridge"]
         run_check(args=cmd, logger=self._logger)
+        cmd = ["ip", "link", "set", "dev", self._bridge, "up"]
+        run_check(args=cmd, logger=self._logger)
 
     def _create_taps(self) -> None:
         for i in range(self._first_tap, (self._first_tap + self._num_taps)):
@@ -157,7 +159,6 @@ class Bridger:
         run_check(args=cmd, logger=self._logger)
         cmd = ["ip", "addr", "replace", "dev", self._bridge, self._ip]
         run_check(args=cmd, logger=self._logger)
-        cmd = ["ip", "link", "set", "dev", self._bridge, "up"]
         if self._gateway:
             cmd = [
                 "ip",
