@@ -24,15 +24,26 @@ After running brnet, you can therefore use, say, the `tap0` interface in
 a guest system as your emulated ethernet device, and run as your normal
 emulator user without sudo, and still have the network interface work.
 
-# Using with PiDP-11
+# Installing
 
-You should run this script before you start the emulator.  When I did
-that I found out simh was starting before my network interface had
-acquired an address, so I wrote [wait_for_if](./wait_for_if) to pause
-until the interface came up.  I then inserted the calls to `wait_for_if`
-and `brnet` before the `rpcbind` call in `pidp11.sh`.
+`pip install brnet`, or check out the repository and do a `pip install
+-e .`  You probably want to do this in a virtualenv, and if you do that,
+you probably want to install a wrapper script as `/usr/local/bin/brnet`
+to activate the appropriate virtualenv and then run the `brnet` command
+(virtualenv activation will put the new stuff at the head of your
+`$PATH`).
 
-The diff to do that is [here](./pidp11.sh.diff).
+Then you want to drop the following into `/etc/network/interfaces.d` to
+start the network after the physical interface comes up.  I called my
+file `01-eth0-and-bridge` and it contains:
+
+```
+auto eth0
+iface eth0 inet dhcp
+
+post-up  /usr/local/bin/brnet start
+pre-down /usr/local/bin/brnet stop
+```
 
 # Examples
 
@@ -46,3 +57,5 @@ To run with a different user and group and more tap devices:
 To shut down the bridge and put things back the way they were:
 
 `brnet stop`
+
+`brnet -h` will give you a help message explaining all the parameters.
