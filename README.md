@@ -31,19 +31,11 @@ emulator user without sudo, and still have the network interface work.
 you probably want to install a wrapper script as `/usr/local/bin/brnet`
 to activate the appropriate virtualenv and then run the `brnet` command
 (virtualenv activation will put the new stuff at the head of your
-`$PATH`).
+`$PATH`).  One approach to this is [here](./wrapper.sh).
 
 Then you want to drop the following into `/etc/network/interfaces.d` to
 start the network after the physical interface comes up.  I called my
-file `01-eth0-and-bridge` and it contains:
-
-```
-auto eth0
-iface eth0 inet dhcp
-
-post-up  /usr/local/bin/brnet start
-pre-down /usr/local/bin/brnet stop
-```
+file [`01-phys-to-bridge`](./01-phys-to-bridge).
 
 # Examples
 

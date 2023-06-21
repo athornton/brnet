@@ -1,0 +1,5 @@
+auto eth0
+iface eth0 inet dhcp
+
+post-up  /usr/local/bin/brnet start
+pre-down /usr/local/bin/brnet stop
