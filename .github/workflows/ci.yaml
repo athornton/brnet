@@ -47,6 +47,12 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
+      - name: Regen dependencies
+        run: |
+          rm -f requirements/main.txt requirements/dev.txt
+          make update-deps
+          make init
+
       - name: Run pre-commit
         uses: pre-commit/action@v3.0.0
 
