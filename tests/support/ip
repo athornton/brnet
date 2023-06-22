@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""
+This is a minimal implementation of the "ip" command that only shows
+plausible output for the "--json" flag, and only for fake devices "eth0"
+and "br0" and commands "addr" and "route".
+
+This is used solely for testing "brnet"
+"""
+
+import json
+import os
+import sys
+
+iface = {
+    "addr": [
+        {
+            "address": "00:de:ad:be:ef:00",
+            "addr_info": [
+                {"family": "inet", "local": "10.44.45.2", "prefixlen": 24}
+            ],
+        },
+    ],
+    "route": [
+        {
+            "gateway": "10.44.45.1",
+            "metric": 666,
+        }
+    ],
+}
+
+
+def quit() -> None:
+    sys.exit(0)
+
+
+args = [x for x in sys.argv]  # Make our own copy
+if (
+    "--json" not in args
+    or "dev" not in args
+    or os.path.basename(args[0]) != "ip"
+):
+    quit()
+
+jidx = args.index("--json")
+args.pop(jidx)  # Get rid of the flag
+
+idx = args.index("dev")
+dev = args[idx + 1]
+
+verb = args[1]
+if verb not in ["addr", "route"]:
+    quit()
+
+print(json.dumps(iface[verb]))

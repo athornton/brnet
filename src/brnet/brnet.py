@@ -24,7 +24,6 @@ class Brnet:
         first_tap: int,
         wait_for_address: int,
         debug: bool,
-        dry_run: bool,
     ) -> None:
         self._user = user
         self._group = group
@@ -34,7 +33,6 @@ class Brnet:
         self._first_tap = first_tap
         self._wait = wait_for_address
         self._debug = debug
-        self._dry_run = dry_run
 
         self._interfaces: dict[str, dict[str, Union[str, int]]] = {}
 
@@ -46,18 +44,16 @@ class Brnet:
         ch.setFormatter(formatter)
         self._logger.addHandler(ch)
         self._logger.setLevel("INFO")
-        self._logger.info("Bridger created")
         if self._debug:
             self._logger.setLevel("DEBUG")
-            self._logger.debug("Debugging enabled for Bridger")
-        self._commands: list[str] = []  # Saved for testing
-        if not self._dry_run:
-            # It doesn't matter if the command exists if it won't be run
-            self._preflight_check()
+            self._logger.debug("Debugging enabled for Brnet")
+        self.commands: list[str] = []  # Exposed for testing
+        self._preflight_check()
 
     def execute(self, action: str) -> None:
-        """execute() is the only public method; it can either start or stop
-        the bridged network."""
+        """execute() is the only public method.  It can either start
+        or stop the bridged network.
+        """
         if action == "start":
             self._start()
         elif action == "stop":
@@ -83,15 +79,7 @@ class Brnet:
     ) -> subprocess.CompletedProcess:
         args = shlex.split(cmd)
         self._logger.debug(f"Running command '{cmd}'")
-        self._commands.append(cmd)
-        if self._dry_run:
-            return subprocess.CompletedProcess(
-                # Pretend it succeeded with no error or output
-                args=args,
-                returncode=0,
-                stdout=None,
-                stderr=None,
-            )
+        self.commands.append(cmd)
         proc = subprocess.run(args, capture_output=True, check=check)
         if proc.returncode != 0:
             self._logger.warning(
@@ -136,12 +124,10 @@ class Brnet:
         ]:
             self._run(cmd, check=True)
         if "gateway" in iface and "metric" in iface:
+            addl = f"metric {iface['metric']} via {iface['gateway']}"
             for cmd in [
-                (
-                    "ip route add default metric {iface['metric']} "
-                    + f"dev {self._bridge} via {iface['gateway']}"
-                ),
-                f"ip route del default dev {self._interface}",
+                f"ip route add default metric dev {self._bridge} {addl}",
+                f"ip route del default dev {self._interface} {addl}",
             ]:
                 self._run(cmd)
 
@@ -282,7 +268,7 @@ def _str_bool(inp: str) -> bool:
 
 def main() -> None:
     """
-    Parse arguments and set up a Bridger object.
+    Parse arguments and set up a Brnet object.
     """
     parser = argparse.ArgumentParser(description="Set up bridged networking")
     parser.add_argument(
@@ -341,16 +327,6 @@ def main() -> None:
         help="enable debugging [env: DEBUG, False]",
     )
     parser.add_argument(
-        "-x",
-        "--dry_run",
-        action="store_true",
-        default=_str_bool(os.environ.get("BRNET_DRY_RUN", "")),
-        help=(
-            "dry run (display commands, do not run) "
-            + "[env: BRNET_DRY_RUN, False]"
-        ),
-    )
-    parser.add_argument(
         "action", choices=["start", "stop"], help="Action to take"
     )
     args = parser.parse_args()
@@ -364,7 +340,6 @@ def main() -> None:
         first_tap=args.first_tap,
         wait_for_address=args.wait_for_address,
         debug=args.debug,
-        dry_run=args.dry_run,
     )
     br.execute(args.action)
 
