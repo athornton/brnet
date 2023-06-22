@@ -1,3 +1,3 @@
-from .bridger import Bridger
+from .brnet import Brnet
 
-__all__ = ["Bridger"]
+__all__ = ["Brnet"]

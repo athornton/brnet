@@ -25,7 +25,7 @@ dependencies = []
 dynamic = ["version"]
 
 [project.scripts]
-brnet = "brnet.cli:main"
+brnet = "brnet.brnet:main"
 
 [project.urls]
 Source = "https://github.com/athornton/brnet"
