@@ -114,6 +114,14 @@ class Brnet:
             ]:
                 self._run(cmd, check=True)
 
+    def _get_gwinfo(self, iface: dict[str, Union[str, int]]) -> str:
+        if "gateway" not in iface:
+            return ""
+        addl = f"via {iface['gateway']}"
+        if "metric" in iface:
+            addl += f" metric {iface['metric']}"
+        return addl
+
     def _bridge_phys_if(self) -> None:
         iface = self._interfaces[self._interface]
         for cmd in [
@@ -123,13 +131,12 @@ class Brnet:
             f"ip addr replace dev {self._bridge} {self._ip}",
         ]:
             self._run(cmd, check=True)
-        if "gateway" in iface and "metric" in iface:
-            addl = f"metric {iface['metric']} via {iface['gateway']}"
-            for cmd in [
-                f"ip route add default metric dev {self._bridge} {addl}",
-                f"ip route del default dev {self._interface} {addl}",
-            ]:
-                self._run(cmd)
+        addl = self._get_gwinfo(iface)
+        for cmd in [
+            f"ip route add default metric dev {self._bridge} {addl}",
+            f"ip route del default dev {self._interface} {addl}",
+        ]:
+            self._run(cmd)
 
     def _extract_netinfo(self, interface: str) -> None:
         cmd = f"ip --json addr show dev {interface}"
@@ -191,7 +198,8 @@ class Brnet:
                 gateway = default_route[0]["gateway"]
                 metric = default_route[0].get("metric")
                 self._interfaces[interface]["gateway"] = gateway
-                self._interfaces[interface]["metric"] = metric
+                if metric is not None:
+                    self._interfaces[interface]["metric"] = metric
                 if len(default_route) > 1:
                     self._logger.info(
                         f"Using first default route for {interface} "
@@ -226,17 +234,12 @@ class Brnet:
         ]:
             self._run(cmd, check=True)
         br_iface = self._interfaces[self._bridge]
-        metric = 0
-        gateway = ""
         if "gateway" in br_iface:
-            gateway = str(br_iface["gateway"])
-        if "metric" in br_iface:
-            metric = int(br_iface["metric"])
-        if gateway:
-            dfr = f"ip route add default {self._interface} via {gateway}"
-            if metric:
-                dfr += f" metric {metric}"
-            for cmd in [dfr, f"ip route del default dev {self._bridge}"]:
+            addl = self._get_gwinfo(br_iface)
+            for cmd in [
+                f"ip route add default {self._interface} {addl}",
+                f"ip route del default dev {self._bridge} {addl}",
+            ]:
                 self._run(cmd)
 
     def _delete_bridge(self) -> None:
