@@ -126,17 +126,17 @@ class Brnet:
         iface = self._interfaces[self._interface]
         for cmd in [
             f"ip addr del dev {self._interface} {self._ip}",
-            f"ip link dev {self._bridge} address {iface['mac']}",
-            f"ip link dev {self._interface} master {self._bridge}",
+            f"ip link set dev {self._interface} master {self._bridge}",
             f"ip addr replace dev {self._bridge} {self._ip}",
         ]:
             self._run(cmd, check=True)
         addl = self._get_gwinfo(iface)
-        for cmd in [
-            f"ip route add default metric dev {self._bridge} {addl}",
-            f"ip route del default dev {self._interface} {addl}",
-        ]:
-            self._run(cmd)
+        if addl:
+            for cmd in [
+                f"ip route add default dev {self._bridge} {addl}",
+                f"ip route del default dev {self._interface} {addl}",
+            ]:
+                self._run(cmd)
 
     def _extract_netinfo(self, interface: str) -> None:
         cmd = f"ip --json addr show dev {interface}"
@@ -244,7 +244,7 @@ class Brnet:
 
     def _delete_bridge(self) -> None:
         for cmd in [
-            f"ip link dev {self._bridge} down",
+            f"ip link set dev {self._bridge} down",
             f"ip link del {self._bridge} type bridge",
         ]:
             self._run(cmd, check=True)
