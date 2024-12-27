@@ -96,14 +96,25 @@ class Brnet:
         return proc
 
     def _create_bridge(self) -> None:
-        for cmd in [
-            f"ip link add {self._bridge} type bridge",
-            (
-                f"ip link set dev {self._bridge} up address "
-                + f"{self._interfaces[self._interface]['mac']}"
-            ),
-        ]:
-            self._run(cmd, check=True)
+        linkcmd = f"ip link add {self._bridge} type bridge"
+        proc = self._run(linkcmd)
+        if proc.returncode != 0:
+            self._logger.warning(
+                f"'{linkcmd}' failed: rc {proc.returncode}\n"
+                f"stderr: '{proc.stderr}'\n"
+            )
+            proc2 = self._run(f"ip link del {self._bridge} type bridge")
+            if proc2.returncode != 0:
+                self._logger.warning(
+                    f"'ip link del {self._bridge}' failed: "
+                    "rc {proc2.returncode}\n"
+                )
+            self._run(linkcmd)
+        cmd = (
+            f"ip link set dev {self._bridge} up address "
+            f"{self._interfaces[self._interface]['mac']}"
+        )
+        self._run(cmd, check=True)
 
     def _create_taps(self) -> None:
         for i in range(self._first_tap, (self._first_tap + self._num_taps)):
@@ -173,10 +184,11 @@ class Brnet:
                     "There should be at least one IPv4 address for "
                     + interface
                 )
+            retries += 1
         addr = addrs[0]
         if len(addrs) > 1:
             self._logger.info(
-                f"Multiple addresses found for {interface}; using {addr}"
+                f"Multiple addresses found for {interface}, using {addr}"
             )
         self._interfaces[interface]["ip_addr"] = addr["local"]
         self._interfaces[interface]["prefixlen"] = addr["prefixlen"]
@@ -224,7 +236,7 @@ class Brnet:
                 f"ip link set dev {tapdev} down",
                 f"ip tuntap del mode tap {tapdev}",
             ]:
-                self._run(cmd, check=True)
+                self._run(cmd)
 
     def _debridge_interface(self) -> None:
         for cmd in [
